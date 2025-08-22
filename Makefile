@@ -24,7 +24,11 @@ $(LIBPCAP_OBJ): $(GIT_MODULES_DIR)
 $(LIBBPF_OBJ): $(GIT_MODULES_DIR)
 
 $(VMLINUX_OBJ):
+ifeq ($(TARGET_ARCH),arm64)
+	$(CMD_CP) $(CURDIR)/bpf/headers/vmlinux-arm64.h $(VMLINUX_OBJ)
+else
 	$(CMD_BPFTOOL) btf dump file /sys/kernel/btf/vmlinux format c > $(VMLINUX_OBJ)
+endif
 
 $(FEAT_BPF_OBJ): $(FEAT_BPF_SRC) $(VMLINUX_OBJ) $(LIBBPF_OBJ)
 	$(BPF2GO) Feat $(CURDIR)/bpf/feature.c -- $(BPF2GO_EXTRA_FLAGS)
