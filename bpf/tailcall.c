@@ -12,6 +12,7 @@ struct {
     __type(value, __u32);
 } prog_array SEC(".maps");
 
+#if !defined(bpf_target_arm64)
 static __noinline int
 subprog(void *ctx, int index)
 {
@@ -19,11 +20,16 @@ subprog(void *ctx, int index)
 
     return BPF_OK;
 }
+#endif
 
 SEC("kprobe/__x64_sys_nanosleep")
 int BPF_KPROBE(entry, struct pt_regs *regs)
 {
+    #if defined(bpf_target_arm64)
+    bpf_tail_call(ctx, &prog_array, 0);
+    #else
     subprog(ctx, 0);
+    #endif
 
     return BPF_OK;
 }
