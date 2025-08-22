@@ -39,6 +39,7 @@ var (
 	filterPid       uint32
 	kfuncAllKmods   bool
 	kfuncKmods      []string
+	kmodBTFDir      string
 	noColorOutput   bool
 	colorfulOutput  bool
 	limitEvents     uint
@@ -93,6 +94,7 @@ func ParseFlags() (*Flags, error) {
 	f.StringSliceVarP(&flags.ktps, "tracepoint", "t", nil, "filter kernel tracepoints")
 	f.BoolVar(&kfuncAllKmods, "kfunc-all-kmods", false, "filter functions in all kernel modules")
 	f.StringSliceVar(&kfuncKmods, "kfunc-kmods", nil, "filter functions in specified kernel modules")
+	f.StringVar(&kmodBTFDir, "kmod-btf-dir", "", "specific directory to search non-split BTF files for kernel modules")
 	f.StringVarP(&flags.outputFile, "output", "o", "", "output file for the result, default is stdout")
 	f.BoolVarP(&flags.disasm, "disasm", "d", false, "disasm bpf prog or kernel function")
 	f.UintVarP(&flags.disasmBytes, "disasm-bytes", "B", 0, "disasm bytes of kernel function, 0 to guess it automatically")
