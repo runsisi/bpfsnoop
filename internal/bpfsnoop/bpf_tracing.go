@@ -12,6 +12,7 @@ import (
 	"github.com/cilium/ebpf/btf"
 	"golang.org/x/sync/errgroup"
 
+	"github.com/bpfsnoop/bpfsnoop/internal/bpf"
 	"github.com/bpfsnoop/bpfsnoop/internal/btfx"
 )
 
@@ -56,8 +57,50 @@ func NewBPFTracing(spec *ebpf.CollectionSpec, reusedMaps map[string]*ebpf.Map, b
 	var errg errgroup.Group
 	var t bpfTracing
 
+	// Check if any functions need kprobe and load kprobe spec if needed
+	var kprobeSpec *ebpf.CollectionSpec
+	var kprobeReusedMaps map[string]*ebpf.Map
+
+	useKprobe := NeedsKprobe(kfuncs)
+	if useKprobe {
+		DebugLog("Loading kprobe spec for functions requiring kprobe attachment")
+		var err error
+		kprobeSpec, err = bpf.LoadKprobe()
+		if err != nil {
+			return nil, fmt.Errorf("failed to load kprobe spec: %w", err)
+		}
+
+		// This is needed to clear filters
+		TrimSpec(kprobeSpec)
+
+		for name, s := range spec.Maps {
+			kprobeSpec.Maps[name] = s.Copy()
+		}
+
+		// maps.Copy(kprobeSpec.Variables, spec.Variables)
+		kprobeSessions, err := ebpf.NewMap(kprobeSpec.Maps["bpfsnoop_kprobe_sessions"])
+		if err != nil {
+			return nil, fmt.Errorf("failed to create kprobe sessions map: %w", err)
+		}
+		defer kprobeSessions.Close()
+
+		// Create kprobe-specific reusedMaps that shares essential maps but uses kprobe-specific maps
+		kprobeReusedMaps = map[string]*ebpf.Map{
+			".data.ready":              reusedMaps[".data.ready"],     // Shared: program ready state
+			"bpfsnoop_events":          reusedMaps["bpfsnoop_events"], // Shared: event output
+			"bpfsnoop_lbrs":            reusedMaps["bpfsnoop_lbrs"],   // Shared: LBR data
+			".data.lbrs":               reusedMaps[".data.lbrs"],      // Shared: LBR data
+			"bpfsnoop_stacks":          reusedMaps["bpfsnoop_stacks"], // Shared: stack traces
+			"bpfsnoop_kprobe_sessions": kprobeSessions,
+		}
+
+		t.traceFuncs(&errg, kprobeSpec, kprobeReusedMaps, kfuncs)
+	}
+
 	t.traceProgs(&errg, spec, reusedMaps, bprogs)
-	t.traceFuncs(&errg, spec, reusedMaps, kfuncs)
+	if !useKprobe {
+		t.traceFuncs(&errg, spec, reusedMaps, kfuncs)
+	}
 
 	if err := t.traceInsns(&errg, reusedMaps, insns); err != nil {
 		return nil, fmt.Errorf("failed to trace kfunc insns: %w", err)
