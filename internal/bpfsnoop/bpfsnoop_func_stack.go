@@ -45,7 +45,8 @@ func (s *fnStack) get(event *Event, helpers *Helpers, stacks *ebpf.Map, symbolOn
 	_ = stacks.Delete(id)
 
 	ips := s.ips[:]
-	if !verbose {
+	// should not skip entries for kprobe
+	if !verbose && false {
 		ips = ips[3:] // Skip the first 3 entries as they are entries for fentry/fexit and its trampoline.
 	}
 	for _, ip := range ips {
