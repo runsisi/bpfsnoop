@@ -66,11 +66,15 @@ READ_BPF_SRC := bpf/read.c
 TAILCALL_BPF_OBJ := $(DIR_BPF)/tailcall_bpfel.o $(DIR_BPF)/tailcall_bpfeb.o
 TAILCALL_BPF_SRC := bpf/tailcall.c
 
+KPROBE_BPF_OBJ := $(DIR_BPF)/kprobe_bpfel.o $(DIR_BPF)/kprobe_bpfeb.o
+KPROBE_BPF_SRC := bpf/bpfsnoop_kprobe.c $(wildcard bpf/*.h) $(wildcard bpf/headers/*.h)
+
 BPF_OBJS := $(BPFSNOOP_BPF_OBJ) \
 			$(INSN_BPF_OBJ) \
 			$(GRAPH_BPF_OBJ) \
 			$(READ_BPF_OBJ) \
 			$(FEAT_BPF_OBJ) \
+			$(KPROBE_BPF_OBJ) \
 			$(TAILCALL_BPF_OBJ) \
 			$(TRACEABLE_BPF_OBJ) \
 			$(TRACEPOINT_BPF_OBJ) \
