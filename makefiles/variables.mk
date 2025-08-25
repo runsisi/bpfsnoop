@@ -18,7 +18,7 @@ CMD_GIT_MODULES ?= $(CMD_GIT) submodule
 DIR_BIN := ./bin
 DIR_BPF := ./internal/bpf
 
-GOBUILD := go build -v -trimpath
+GOBUILD := go build -v -trimpath -gcflags="all=-N -l"
 GOBUILD_CGO_CFLAGS := CGO_CFLAGS='-O2 -I$(CURDIR)/lib/capstone/include -I$(CURDIR)/lib/libpcap'
 GOBUILD_CGO_LDFLAGS := CGO_LDFLAGS='-O2 -g -L$(CURDIR)/lib/capstone/build -lcapstone -L$(CURDIR)/lib/libpcap -lpcap -static'
 
