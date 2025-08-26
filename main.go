@@ -99,9 +99,9 @@ func main() {
 	kfuncs, err := bpfsnoop.FindKernelFuncs(flags.Kfuncs(), kallsyms, maxArg)
 	assert.NoErr(err, "Failed to find kernel functions: %v")
 
-	bpfsnoop.VerboseLog("Detect %d kernel functions traceable ..", len(kfuncs))
-	kfuncs, err = bpfsnoop.DetectTraceable(kfuncs)
-	assert.NoVerifierErr(err, "Failed to detect traceable for kfuncs: %v")
+	// bpfsnoop.VerboseLog("Detect %d kernel functions traceable ..", len(kfuncs))
+	// kfuncs, err = bpfsnoop.DetectTraceable(kfuncs)
+	// assert.NoVerifierErr(err, "Failed to detect traceable for kfuncs: %v")
 
 	tpTs := time.Now()
 	ktps, err := bpfsnoop.FindKernelTracepoints(flags.Ktps(), kallsyms)
