@@ -48,7 +48,7 @@ func iterateKernelBtfs(allKmods bool, kmods []string, iter func(*btf.Spec) bool)
 		kmods = sortCompact(kmods)
 		if idx := slices.Index(kmods, "vmlinux"); idx != -1 {
 			// ensure vmlinux is searched first
-			kmods = append([]string{"vmlinux"}, slices.Delete(kmods, idx, 1)...)
+			kmods = append([]string{"vmlinux"}, slices.Delete(kmods, idx, idx+1)...)
 		} else {
 			// ensure vmlinux is always searched
 			kmods = append([]string{"vmlinux"}, kmods...)
