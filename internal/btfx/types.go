@@ -337,10 +337,21 @@ func ReprExprType(expr string, t btf.Type, mem *btf.Member, isStr, isNumberPtr b
 	fmt.Fprintf(&sb, "(%s)'%s'=", Repr(t), expr)
 
 	if mem != nil && mem.BitfieldSize != 0 {
-		var memData [24]byte
-		SetU64(memData[:], data)
-		SetU64(memData[8:], data2)
-		reprMember(&sb, mem, memData[:], f)
+		// For bitfield, data already contains the value we need
+		// We just need to extract the bitfield from the data value
+		bitOffset := int(mem.Offset % 8)
+		val := data
+
+		// Apply bit offset if needed
+		if bitOffset != 0 {
+			val >>= bitOffset
+		}
+
+		// Apply the mask for the bitfield size
+		mask := (uint64(1) << uint64(mem.BitfieldSize)) - 1
+		val &= mask
+
+		fmt.Fprintf(&sb, "%d", val)
 	} else {
 		reprValue(&sb, t, isStr, isNumberPtr, data, data2, dataNext, s, f)
 	}
