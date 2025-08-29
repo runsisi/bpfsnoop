@@ -32,6 +32,9 @@ type accessResult struct {
 	offsets []accessOffset
 
 	uptr uint64
+
+	// For computed expressions: store the register containing the computed value
+	reg asm.Register
 }
 
 // isMemberBitfield reports whether the member is a bitfield attribute.
@@ -53,6 +56,27 @@ func (r *accessResult) prevBtf() btf.Type {
 
 func (c *compiler) accessMemory(expr *cc.Expr) (accessResult, error) {
 	switch expr.Op {
+	case cc.And, cc.Or:
+		// For bitwise operations, evaluate the entire expression
+		val, err := c.eval(expr)
+		if err != nil {
+			return accessResult{}, fmt.Errorf("failed to evaluate bitwise operation: %w", err)
+		}
+
+		if val.typ != evalValueTypeRegBtf {
+			return accessResult{}, fmt.Errorf("bitwise operation result must be a register value")
+		}
+
+		// Return the computed value as an accessResult
+		return accessResult{
+			raw:     val.btf,
+			idx:     -1, // mark as computed value
+			btf:     val.btf,
+			mem:     nil,
+			lastIdx: -1,
+			// Store the computed register for later use
+			reg: val.reg,
+		}, nil
 	case cc.Name:
 		idx := slices.Index(c.vars, expr.Text)
 		if idx == -1 {
@@ -417,30 +441,48 @@ func (c *compiler) access(expr *cc.Expr) (evalValue, error) {
 
 	var eval evalValue
 
-	reg, err := c.regalloc.Alloc()
-	if err != nil {
-		return eval, fmt.Errorf("failed to alloc register for memory access: %w", err)
+	if res.idx != -1 {
+		// Normal variable access
+		reg, err := c.regalloc.Alloc()
+		if err != nil {
+			return eval, fmt.Errorf("failed to alloc register for memory access: %w", err)
+		}
+
+		eval.typ = evalValueTypeRegBtf
+		eval.btf = res.btf
+		eval.mem = res.mem
+		eval.reg = reg
+
+		if res.uptr == 0 {
+			c.emitLoadArg(res.idx, reg)
+		} else {
+			c.emit(asm.Instruction{
+				OpCode:   asm.Mov.Op(asm.ImmSource),
+				Dst:      reg,
+				Constant: int64(res.uptr),
+			})
+		}
+		if err := c.offset2insns(res.offsets, reg); err != nil {
+			return eval, fmt.Errorf("failed to convert offsets to instructions: %w", err)
+		}
 	}
 
-	eval.typ = evalValueTypeRegBtf
-	eval.btf = res.btf
-	eval.mem = res.mem
-	eval.reg = reg
+	if res.idx == -1 {
+		// This is a computed value (from bitwise operations, etc.)
+		// Use the pre-computed register
+		eval.typ = evalValueTypeRegBtf
+		eval.btf = res.btf
+		eval.mem = res.mem
+		eval.reg = res.reg
 
-	if res.uptr == 0 {
-		c.emitLoadArg(res.idx, reg)
-	} else {
-		c.emit(asm.Instruction{
-			OpCode:   asm.Mov.Op(asm.ImmSource),
-			Dst:      reg,
-			Constant: int64(res.uptr),
-		})
+		// Apply any offsets for member access
+		if err := c.offset2insns(res.offsets, eval.reg); err != nil {
+			return eval, fmt.Errorf("failed to convert offsets to instructions: %w", err)
+		}
 	}
-	if err := c.offset2insns(res.offsets, reg); err != nil {
-		return eval, fmt.Errorf("failed to convert offsets to instructions: %w", err)
-	}
+
 	if isMemberBitfield(res.mem) {
-		c.bitfield2insns(res.mem, reg)
+		c.bitfield2insns(res.mem, eval.reg)
 	} else {
 		c.adjustRegisterBitwise(eval)
 	}
