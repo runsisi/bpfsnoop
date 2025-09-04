@@ -20,6 +20,7 @@ const (
 	pcapFilterL3StubSpecialized = "filter_pcap_l3.specialized.1"
 
 	filterSkbFunc      = "filter_skb"
+	filterPskbFunc     = "filter_pskb"
 	filterXdpBuffFunc  = "filter_xdp_buff"
 	filterXdpFrameFunc = "filter_xdp_frame"
 	filterPktFunc      = "filter_pkt"
@@ -40,6 +41,14 @@ func preparePacketFilter(expr string) packetFilter {
 func (pf *packetFilter) filterSkb(prog *ebpf.ProgramSpec, index int, t btf.Type) error {
 	if pf.expr == "" {
 		return nil
+	}
+
+	isPskb := false
+	filterFunc := filterSkbFunc
+	ptr, _ := t.(*btf.Pointer)
+	if _, ok := ptr.Target.(*btf.Struct); !ok {
+		isPskb = true
+		filterFunc = filterPskbFunc
 	}
 
 	var err error
@@ -66,11 +75,14 @@ func (pf *packetFilter) filterSkb(prog *ebpf.ProgramSpec, index int, t btf.Type)
 	}
 
 	pf.clearSpecializedStubs(prog)
+	if !isPskb {
+		clearFilterSubprog(prog, filterPskbFunc)
+	}
 	clearFilterSubprog(prog, filterXdpBuffFunc)
 	clearFilterSubprog(prog, filterXdpFrameFunc)
 
 	insns := append(genAccessArg(index, asm.R1),
-		asm.Call.Label(filterSkbFunc),
+		asm.Call.Label(filterFunc),
 		asm.Return(),
 	)
 
@@ -129,6 +141,7 @@ func (pf *packetFilter) clear(prog *ebpf.ProgramSpec) {
 	clearFilterSubprog(prog, pcapFilterL2Stub)
 	clearFilterSubprog(prog, pcapFilterL3Stub)
 	clearFilterSubprog(prog, filterSkbFunc)
+	clearFilterSubprog(prog, filterPskbFunc)
 	clearFilterSubprog(prog, filterXdpBuffFunc)
 	clearFilterSubprog(prog, filterXdpFrameFunc)
 	clearFilterSubprog(prog, filterPktFunc)

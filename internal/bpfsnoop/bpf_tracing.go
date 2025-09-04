@@ -245,8 +245,18 @@ func (t *bpfTracing) injectPktFilter(prog *ebpf.ProgramSpec, params []btf.FuncPa
 		}
 
 		stt, ok := ptr.Target.(*btf.Struct)
+
+		// Check for double pointer
 		if !ok {
-			continue
+			if ptr, ok := ptr.Target.(*btf.Pointer); ok {
+				if s, ok := ptr.Target.(*btf.Struct); ok {
+					stt = s
+				} else {
+					continue
+				}
+			} else {
+				continue
+			}
 		}
 
 		var err error
@@ -307,13 +317,29 @@ func (t *bpfTracing) injectPktOutput(pkt bool, prog *ebpf.ProgramSpec, params []
 		}
 
 		stt, ok := ptr.Target.(*btf.Struct)
+
+		isPskb := false
+		// Check for double pointer
 		if !ok {
-			continue
+			if ptr, ok := ptr.Target.(*btf.Pointer); ok {
+				if s, ok := ptr.Target.(*btf.Struct); ok {
+					stt = s
+					isPskb = true
+				} else {
+					continue
+				}
+			} else {
+				continue
+			}
 		}
 
 		switch stt.Name {
 		case "sk_buff", "__sk_buff":
-			pktOutput.outputSkb(prog, i)
+			if isPskb {
+				pktOutput.outputPskb(prog, i)
+			} else {
+				pktOutput.outputSkb(prog, i)
+			}
 			DebugLog("Injected --output-pkt to %dth param (%s)%s of %s", i, btfx.Repr(p.Type), p.Name, fnName)
 			return true
 

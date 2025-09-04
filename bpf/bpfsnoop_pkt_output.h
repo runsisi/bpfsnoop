@@ -78,6 +78,15 @@ output_skb(void *ptr, struct bpfsnoop_pkt_data *pkt)
     output_tuple(pkt, iph);
 }
 
+static __noinline void
+output_pskb(void *ptr, struct bpfsnoop_pkt_data *pkt)
+{
+    struct sk_buff *skb;
+    if (bpf_probe_read_kernel(&skb, sizeof(skb), ptr))
+        return;
+    output_skb(skb, pkt);
+}
+
 static __always_inline void
 output_xdp_data(void *data, struct bpfsnoop_pkt_data *pkt)
 {
@@ -148,6 +157,7 @@ output_pkt(__u64 *args, struct bpfsnoop_pkt_data *pkt)
         break;
 
     default:
+        output_pskb(ptr, pkt);
         output_skb(ptr, pkt);
     }
 }
