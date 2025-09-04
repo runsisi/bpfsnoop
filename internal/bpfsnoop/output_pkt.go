@@ -11,6 +11,7 @@ import (
 const (
 	outputPktFunc      = "output_pkt"
 	outputSkbFunc      = "output_skb"
+	outputPskbFunc     = "output_pskb"
 	outputXdpBuffFunc  = "output_xdp_buff"
 	outputXdpFrameFunc = "output_xdp_frame"
 )
@@ -39,20 +40,25 @@ func (p *packetOutput) injectStub(prog *ebpf.ProgramSpec, index int, stub string
 }
 
 func (p *packetOutput) outputSkb(prog *ebpf.ProgramSpec, index int) {
-	p.injectStub(prog, index, outputSkbFunc, outputXdpBuffFunc, outputXdpFrameFunc)
+	p.injectStub(prog, index, outputSkbFunc, outputPskbFunc, outputXdpBuffFunc, outputXdpFrameFunc)
+}
+
+func (p *packetOutput) outputPskb(prog *ebpf.ProgramSpec, index int) {
+	p.injectStub(prog, index, outputPskbFunc, outputXdpBuffFunc, outputXdpFrameFunc)
 }
 
 func (p *packetOutput) outputXdpBuff(prog *ebpf.ProgramSpec, index int) {
-	p.injectStub(prog, index, outputXdpBuffFunc, outputSkbFunc, outputXdpFrameFunc)
+	p.injectStub(prog, index, outputXdpBuffFunc, outputSkbFunc, outputPskbFunc, outputXdpFrameFunc)
 }
 
 func (p *packetOutput) outputXdpFrame(prog *ebpf.ProgramSpec, index int) {
-	p.injectStub(prog, index, outputXdpFrameFunc, outputSkbFunc, outputXdpBuffFunc)
+	p.injectStub(prog, index, outputXdpFrameFunc, outputSkbFunc, outputPskbFunc, outputXdpBuffFunc)
 }
 
 func (p *packetOutput) clear(prog *ebpf.ProgramSpec) {
 	clearOutputSubprog(prog, outputPktFunc)
 	clearOutputSubprog(prog, outputSkbFunc)
+	clearOutputSubprog(prog, outputPskbFunc)
 	clearOutputSubprog(prog, outputXdpBuffFunc)
 	clearOutputSubprog(prog, outputXdpFrameFunc)
 }
