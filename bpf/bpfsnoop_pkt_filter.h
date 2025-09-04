@@ -62,6 +62,15 @@ filter_xdp_frame(struct xdp_frame *xdp)
 }
 
 static __noinline bool
+filter_pskb(struct sk_buff **pskb)
+{
+    struct sk_buff *skb;
+    if (bpf_probe_read_kernel(&skb, sizeof(skb), pskb))
+        return false;
+    return filter_skb(skb);
+}
+
+static __noinline bool
 filter_pkt(__u64 *args, int filter)
 {
     /* This function will be rewrote by Go totally. */
@@ -73,6 +82,7 @@ filter_pkt(__u64 *args, int filter)
         return filter_xdp_frame((struct xdp_frame *) args[0]);
 
     default:
+        filter_pskb((struct sk_buff **) args[0]);
         return filter_skb((struct sk_buff *) args[0]);
     }
 }
